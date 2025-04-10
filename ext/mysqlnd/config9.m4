@@ -33,8 +33,17 @@ if test "$PHP_MYSQLND" != "no" || test "$PHP_MYSQLND_ENABLED" = "yes"; then
       [AC_DEFINE([MYSQLND_COMPRESSION_ENABLED], [1],
         [Define to 1 if mysqlnd has compressed protocol support.])])])
 
-  AC_DEFINE([MYSQLND_SSL_SUPPORTED], [1],
-    [Define to 1 if mysqlnd core SSL is enabled.])
+  dnl Only enable SSL support if OpenSSL is available and properly linked
+  AS_VAR_IF([PHP_MYSQLND_SSL], [no],
+    [AS_VAR_IF([PHP_OPENSSL], [shared],
+      [PHP_ADD_LIBRARY(crypto,, [MYSQLND_SHARED_LIBADD])
+       AC_DEFINE([MYSQLND_SSL_SUPPORTED], [1], [Define to 1 if mysqlnd core SSL is enabled.])],
+      [AC_DEFINE([MYSQLND_SSL_SUPPORTED], [0], [Define to 1 if mysqlnd core SSL is enabled.])])],
+    [PHP_SETUP_OPENSSL([MYSQLND_SHARED_LIBADD], [
+      AC_DEFINE([MYSQLND_SSL_SUPPORTED], [1], [Define to 1 if mysqlnd core SSL is enabled.])
+      AC_DEFINE([MYSQLND_HAVE_SSL], [1], [Define to 1 if mysqlnd extended SSL is enabled through a system library.])
+      PHP_ADD_EXTENSION_DEP(mysqlnd, hash)
+    ])])
 
   PHP_NEW_EXTENSION([mysqlnd], m4_normalize([
     mysqlnd_alloc.c
@@ -62,13 +71,6 @@ if test "$PHP_MYSQLND" != "no" || test "$PHP_MYSQLND_ENABLED" = "yes"; then
   ]),
   [$ext_shared],,
   [-DZEND_ENABLE_STATIC_TSRMLS_CACHE=1])
-
-  AS_VAR_IF([PHP_MYSQLND_SSL], [no],,
-    [PHP_SETUP_OPENSSL([MYSQLND_SHARED_LIBADD], [
-      AC_DEFINE([MYSQLND_HAVE_SSL], [1],
-        [Define to 1 if mysqlnd extended SSL is enabled through a system library.])
-      PHP_ADD_EXTENSION_DEP(mysqlnd, hash)
-    ])])
 
   PHP_INSTALL_HEADERS([ext/mysqlnd/])
   PHP_SUBST([MYSQLND_SHARED_LIBADD])
